@@ -3,20 +3,19 @@ import ReactDOM from 'react-dom';
 import './index.css';
 import App from './App';
 import { BrowserRouter } from 'react-router-dom';
-import axios from 'axios';
-
-axios.interceptors.request.use( (config) => {
-  const access_token = localStorage.getItem('access_token')
-  if (access_token){
-    config.headers.access_token = access_token
-  }
-
-  return config
-}) 
+import { AuthProvider } from "./providers/AuthProvider";
+import { initMiddleware, } from 'devise-axios';
+import 'semantic-ui-css/semantic.min.css'
+import { TrackProvider } from './providers/TrackProvider';
+// initMiddleware();
 
 ReactDOM.render(
-  <BrowserRouter>
-    <App />
-  </BrowserRouter>
+  <AuthProvider>
+    <TrackProvider>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </TrackProvider>
+  </AuthProvider>
   , document.getElementById('root')
 );

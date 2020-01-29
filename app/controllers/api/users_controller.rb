@@ -1,3 +1,5 @@
+require 'rest-client'
+
 class Api::UsersController < ApplicationController
   def spotify
     url = "https://accounts.spotify.com/authorize"
@@ -15,11 +17,48 @@ class Api::UsersController < ApplicationController
       show_dialog: true
     }
 
-    # redirect_to "#{url}?#{query_params.to_query}"
     render json: "#{url}?#{query_params.to_query}"
-    # spotify_user = RSpotify::User.new(request.env['omniauth.auth']).to_hash
-    # Now you can access user's private data, create playlists and much more
-    # render json: spotify_user
   end
-  
+
+  def create
+    body = {
+      grant_type: "authorization_code",
+      code: params[:code],
+      redirect_uri: 'http://localhost:3000/auth/spotify/callback',
+      client_id:  ENV['client_id'],
+      client_secret: ENV['client_secret']
+    }
+
+    auth_response = RestClient.post 'https://accounts.spotify.com/api/token', body
+    auth_params = JSON.parse(auth_response.body)
+    header = {
+      Authorization: "Bearer #{auth_params["access_token"]}"
+    }
+
+    user_response = RestClient.get("https://api.spotify.com/v1/me", header)
+    user_params = JSON.parse(user_response.body)
+
+    # Create_by not working because of devise needs a email and password.
+    @user = User.find_or_create_by(
+      name: user_params["display_name"],
+      spotify_url: user_params["external_urls"]["spotify"],
+      href: user_params["href"],
+      uri: user_params["uri"],
+      spotify_id: user_params["id"]
+    )
+
+    if @user.access_token_expired?
+      @user.refresh_access_token
+    else
+      @user.update(
+        access_token: auth_params["access_token"], 
+        refresh_token: auth_params["refresh_token"]
+      )
+    end
+      
+    render json: @user
+    # redirect_to "http://localhost:3001/search"
+  end
+
+
 end
